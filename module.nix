@@ -86,20 +86,28 @@ in
         ExecStart = "/opt/windscribe/helper";
         Restart = "on-failure";
       };
-      path = with pkgs; [
-        iptables
-        iproute2
-        systemd
-        util-linux
-        kmod
-        gnused
-        gawk
-        gnugrep
-        coreutils
-        e2fsprogs
-        wireguard-tools
-        shadow
-      ];
+      # /run/wrappers/bin provides sudo, which the helper uses to drop
+      # privileges when starting stunnel/wstunnel for Stealth and WStunnel protocols.
+      environment.PATH = lib.mkForce (
+        "/run/wrappers/bin:"
+        + lib.makeBinPath (
+          with pkgs;
+          [
+            iptables
+            iproute2
+            systemd
+            util-linux
+            kmod
+            gnused
+            gawk
+            gnugrep
+            coreutils
+            e2fsprogs
+            wireguard-tools
+            shadow
+          ]
+        )
+      );
     };
   };
 }
