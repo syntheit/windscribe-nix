@@ -166,6 +166,27 @@ stdenv.mkDerivation rec {
   # Bundled libs (libwsnet, libcrypto, libssl) live in $out/opt/windscribe/lib
   preFixup = ''
     addAutoPatchelfSearchPath $out/opt/windscribe/lib
+
+    # Go binaries (wstunnel, amneziawg, ctrld) crash if autoPatchelf modifies
+    # their RUNPATH - the Go runtime doesn't handle standard ELF patching well
+    # and the dynamic linker segfaults. Move them out before autoPatchelf runs,
+    # then restore and only patch their interpreter.
+    mkdir -p $out/opt/windscribe/.go-bins
+    for bin in windscribewstunnel windscribeamneziawg windscribectrld; do
+      if [ -f "$out/opt/windscribe/$bin" ]; then
+        mv "$out/opt/windscribe/$bin" "$out/opt/windscribe/.go-bins/"
+      fi
+    done
+  '';
+
+  postFixup = ''
+    # Restore Go binaries and only patch their interpreter (not RUNPATH)
+    for bin in $out/opt/windscribe/.go-bins/*; do
+      mv "$bin" "$out/opt/windscribe/"
+      patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
+        "$out/opt/windscribe/$(basename $bin)" 2>/dev/null || true
+    done
+    rmdir $out/opt/windscribe/.go-bins
   '';
 
   meta = with lib; {
