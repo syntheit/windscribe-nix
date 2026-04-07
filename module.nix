@@ -71,6 +71,12 @@ in
         # resolve to /nix/store/... which fails the check and blocks all VPN
         # connections. Bind mounts are transparent to realpath().
         ExecStartPre = pkgs.writeShellScript "setup-windscribe-mount" ''
+          # Remove any stale symlink (e.g. from a previous config that used
+          # tmpfiles L+ rules). A symlink defeats the bind mount because
+          # realpath() follows it to /nix/store, failing the path check.
+          if [ -L /opt/windscribe ]; then
+            ${pkgs.coreutils}/bin/rm /opt/windscribe
+          fi
           ${pkgs.coreutils}/bin/mkdir -p /opt/windscribe
           if ! ${pkgs.util-linux}/bin/mountpoint -q /opt/windscribe; then
             ${pkgs.util-linux}/bin/mount --bind ${cfg.package}/opt/windscribe /opt/windscribe
