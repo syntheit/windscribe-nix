@@ -18,6 +18,11 @@ in
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [ cfg.package ];
 
+    # The bundled Go binaries (wstunnel, amneziawg, ctrld) cannot be patched
+    # by autoPatchelf without crashing, so they retain their original
+    # /lib64/ld-linux-x86-64.so.2 interpreter. nix-ld provides this path.
+    programs.nix-ld.enable = true;
+
     # The GUI and CLI need cap_setgid to switch to the windscribe group for
     # helper socket access. security.wrappers creates setcap copies in
     # /run/wrappers/bin/ which is early in PATH and takes precedence.

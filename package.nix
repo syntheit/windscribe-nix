@@ -180,11 +180,10 @@ stdenv.mkDerivation rec {
   '';
 
   postFixup = ''
-    # Restore Go binaries and only patch their interpreter (not RUNPATH)
+    # Restore Go binaries completely unmodified - they use /lib64/ld-linux-x86-64.so.2
+    # which must be provided by the system (e.g. programs.nix-ld.enable = true)
     for bin in $out/opt/windscribe/.go-bins/*; do
       mv "$bin" "$out/opt/windscribe/"
-      patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
-        "$out/opt/windscribe/$(basename $bin)" 2>/dev/null || true
     done
     rmdir $out/opt/windscribe/.go-bins
   '';
