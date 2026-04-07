@@ -53,7 +53,8 @@ in
     users.users.windscribe = {
       isSystemUser = true;
       group = "windscribe";
-      shell = "/bin/false";
+      home = "/var/lib/windscribe";
+      createHome = true;
     };
 
     # Windscribe helper daemon - runs as root, manages firewall rules and
