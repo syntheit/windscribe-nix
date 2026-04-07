@@ -112,6 +112,13 @@ stdenv.mkDerivation rec {
       mkdir -p $out/opt
       cp -r opt/windscribe $out/opt/
 
+      # Save original Go binaries BEFORE any patching. autoPatchelf corrupts
+      # them (segfault in ld-linux) - we restore the originals in postFixup.
+      mkdir -p $TMPDIR/go-originals
+      for bin in windscribewstunnel windscribeamneziawg windscribectrld; do
+        cp "opt/windscribe/$bin" "$TMPDIR/go-originals/" 2>/dev/null || true
+      done
+
       # Inject PATH into helper scripts so they find iptables, ip, wg, etc.
       for script in $out/opt/windscribe/scripts/*; do
         if [ -f "$script" ] && head -1 "$script" | grep -q "^#!"; then
@@ -167,25 +174,16 @@ stdenv.mkDerivation rec {
   preFixup = ''
     addAutoPatchelfSearchPath $out/opt/windscribe/lib
 
-    # Go binaries (wstunnel, amneziawg, ctrld) crash if autoPatchelf modifies
-    # their RUNPATH - the Go runtime doesn't handle standard ELF patching well
-    # and the dynamic linker segfaults. Move them out before autoPatchelf runs,
-    # then restore and only patch their interpreter.
-    mkdir -p $out/opt/windscribe/.go-bins
-    for bin in windscribewstunnel windscribeamneziawg windscribectrld; do
-      if [ -f "$out/opt/windscribe/$bin" ]; then
-        mv "$out/opt/windscribe/$bin" "$out/opt/windscribe/.go-bins/"
-      fi
-    done
-  '';
-
-  postFixup = ''
-    # Restore Go binaries completely unmodified - they use /lib64/ld-linux-x86-64.so.2
-    # which must be provided by the system (e.g. programs.nix-ld.enable = true)
-    for bin in $out/opt/windscribe/.go-bins/*; do
-      mv "$bin" "$out/opt/windscribe/"
-    done
-    rmdir $out/opt/windscribe/.go-bins
+    # Register a hook that runs AFTER autoPatchelf (which is also a
+    # postFixupHook). This restores the original Go binaries from the .deb
+    # that were saved during installPhase. autoPatchelf corrupts Go binaries
+    # (segfault in ld-linux), so we overwrite them with the unpatched originals.
+    restoreGoBinaries() {
+      for bin in "$TMPDIR/go-originals"/*; do
+        cp "$bin" "$out/opt/windscribe/$(basename "$bin")"
+      done
+    }
+    postFixupHooks+=(restoreGoBinaries)
   '';
 
   meta = with lib; {
