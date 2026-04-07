@@ -77,17 +77,18 @@ in
         # resolve to /nix/store/... which fails the check and blocks all VPN
         # connections. Bind mounts are transparent to realpath().
         ExecStartPre = pkgs.writeShellScript "setup-windscribe-mount" ''
-          # Remove any stale symlink (e.g. from a previous config that used
-          # tmpfiles L+ rules). A symlink defeats the bind mount because
-          # realpath() follows it to /nix/store, failing the path check.
+          # Remove any stale symlink from previous configs
           if [ -L /opt/windscribe ]; then
             ${pkgs.coreutils}/bin/rm /opt/windscribe
           fi
           ${pkgs.coreutils}/bin/mkdir -p /opt/windscribe
-          if ! ${pkgs.util-linux}/bin/mountpoint -q /opt/windscribe; then
-            ${pkgs.util-linux}/bin/mount --bind ${cfg.package}/opt/windscribe /opt/windscribe
-            ${pkgs.util-linux}/bin/mount -o remount,bind,ro /opt/windscribe
+          # Always unmount and remount to pick up new store paths after rebuilds.
+          # Without this, a stale mount serves old (possibly broken) binaries.
+          if ${pkgs.util-linux}/bin/mountpoint -q /opt/windscribe; then
+            ${pkgs.util-linux}/bin/umount /opt/windscribe
           fi
+          ${pkgs.util-linux}/bin/mount --bind ${cfg.package}/opt/windscribe /opt/windscribe
+          ${pkgs.util-linux}/bin/mount -o remount,bind,ro /opt/windscribe
         '';
         ExecStart = "/opt/windscribe/helper";
         Restart = "on-failure";
