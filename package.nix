@@ -135,30 +135,24 @@ stdenv.mkDerivation rec {
       EOF
       chmod +x $out/opt/windscribe/scripts/install-update
 
-      # Systemd unit (installed for reference; the NixOS module creates its own)
-      mkdir -p $out/lib/systemd/system
-      cp usr/lib/systemd/system/windscribe-helper.service $out/lib/systemd/system/
-
       # Polkit policy
       mkdir -p $out/share/polkit-1/actions
       cp usr/polkit-1/actions/com.windscribe.authhelper.policy $out/share/polkit-1/actions/
-      sed -i "s|/opt/windscribe|$out/opt/windscribe|g" \
-        $out/share/polkit-1/actions/com.windscribe.authhelper.policy
+      substituteInPlace $out/share/polkit-1/actions/com.windscribe.authhelper.policy \
+        --replace-fail "/opt/windscribe" "$out/opt/windscribe"
 
       # Desktop entry and icons
       mkdir -p $out/share/applications
       cp usr/share/applications/windscribe.desktop $out/share/applications/
-      sed -i "s|/opt/windscribe/Windscribe|windscribe|g" \
-        $out/share/applications/windscribe.desktop
+      substituteInPlace $out/share/applications/windscribe.desktop \
+        --replace-fail "/opt/windscribe/Windscribe" "windscribe"
       cp -r usr/share/icons $out/share/
 
       # Autostart entry (app checks /etc/windscribe/autostart/ for "Launch on Startup")
       mkdir -p $out/etc/xdg/autostart
-      if [ -f etc/windscribe/autostart/windscribe.desktop ]; then
-        cp etc/windscribe/autostart/windscribe.desktop $out/etc/xdg/autostart/
-        sed -i "s|/opt/windscribe/Windscribe|windscribe|g" \
-          $out/etc/xdg/autostart/windscribe.desktop
-      fi
+      cp etc/windscribe/autostart/windscribe.desktop $out/etc/xdg/autostart/
+      substituteInPlace $out/etc/xdg/autostart/windscribe.desktop \
+        --replace-fail "/opt/windscribe/Windscribe" "windscribe"
 
       # CLI and GUI wrappers
       mkdir -p $out/bin
