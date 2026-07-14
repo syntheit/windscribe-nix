@@ -17,6 +17,7 @@
   libxcb-keysyms,
   libxcb-render-util,
   libxcb-cursor,
+  xcbutil,
   libxkbcommon,
   wayland,
   libglvnd,
@@ -28,6 +29,7 @@
   # OpenVPN dependencies
   libnl,
   libcap_ng,
+  acl,
   # Runtime tools used by helper scripts
   iptables,
   iproute2,
@@ -44,11 +46,11 @@
 
 stdenv.mkDerivation rec {
   pname = "windscribe";
-  version = "2.21.7";
+  version = "2.23.12";
 
   src = fetchurl {
     url = "https://github.com/Windscribe/Desktop-App/releases/download/v${version}/windscribe_${version}_amd64.deb";
-    hash = "sha256-ADzN5RH3hLcgvOW5Ix0n44cIslezrM9s1z8uum/Qd1c=";
+    hash = "sha256-YySYUm5URisCVyO9RL+89gMkQn7C3nToVwujAfArIy4=";
   };
 
   nativeBuildInputs = [
@@ -68,6 +70,7 @@ stdenv.mkDerivation rec {
     libxcb-keysyms
     libxcb-render-util
     libxcb-cursor
+    xcbutil
     libxkbcommon
     wayland
     libglvnd
@@ -78,6 +81,7 @@ stdenv.mkDerivation rec {
     pcre2
     libnl
     libcap_ng
+    acl
     stdenv.cc.cc.lib
   ];
 
@@ -134,12 +138,6 @@ stdenv.mkDerivation rec {
       exit 0
       EOF
       chmod +x $out/opt/windscribe/scripts/install-update
-
-      # Polkit policy
-      mkdir -p $out/share/polkit-1/actions
-      cp usr/polkit-1/actions/com.windscribe.authhelper.policy $out/share/polkit-1/actions/
-      substituteInPlace $out/share/polkit-1/actions/com.windscribe.authhelper.policy \
-        --replace-fail "/opt/windscribe" "$out/opt/windscribe"
 
       # Desktop entry and icons
       mkdir -p $out/share/applications
