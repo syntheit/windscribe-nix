@@ -105,7 +105,8 @@ in
       # privileges when starting stunnel/wstunnel for Stealth and WStunnel protocols.
       path = [
         "/run/wrappers"
-      ] ++ (with pkgs; [
+      ]
+      ++ (with pkgs; [
         iptables
         iproute2
         systemd

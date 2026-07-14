@@ -17,7 +17,7 @@
   libxcb-keysyms,
   libxcb-render-util,
   libxcb-cursor,
-  xcbutil,
+  libxcb-util,
   libxkbcommon,
   wayland,
   libglvnd,
@@ -70,7 +70,7 @@ stdenv.mkDerivation rec {
     libxcb-keysyms
     libxcb-render-util
     libxcb-cursor
-    xcbutil
+    libxcb-util
     libxkbcommon
     wayland
     libglvnd
