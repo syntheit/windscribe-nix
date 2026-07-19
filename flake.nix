@@ -6,23 +6,25 @@
   outputs =
     { self, nixpkgs }:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
-      packages.${system} = {
+      packages = forAllSystems (pkgs: {
         windscribe = pkgs.callPackage ./package.nix { };
-        default = self.packages.${system}.windscribe;
-      };
+        default = pkgs.callPackage ./package.nix { };
+      });
 
-      checks.${system}.windscribe = pkgs.testers.runNixOSTest {
+      # NixOS VM tests use KVM; keep the check on x86_64-linux only. The
+      # aarch64 package still builds and runs on aarch64 hosts.
+      checks.x86_64-linux.windscribe = nixpkgs.legacyPackages.x86_64-linux.testers.runNixOSTest {
         imports = [ ./test.nix ];
-        # Inject this flake's module and package into every node. (runNixOSTest
-        # pins each node's pkgs read-only, so set the package directly rather
-        # than via nixpkgs.overlays.)
         defaults = {
           imports = [ self.nixosModules.default ];
-          services.windscribe.package = self.packages.${system}.windscribe;
+          services.windscribe.package = self.packages.x86_64-linux.windscribe;
         };
       };
 

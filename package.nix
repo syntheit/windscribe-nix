@@ -44,13 +44,34 @@
   wireguard-tools,
 }:
 
+let
+  # Upstream ships per-arch .deb builds under identical layouts. The GUI, CLI,
+  # helper and openvpn binaries are dynamically linked on both arches (aarch64
+  # uses /lib/ld-linux-aarch64.so.1; amd64 uses /lib64/ld-linux-x86-64.so.2 —
+  # nix-ld provides both). The bundled Go binaries are dynamically linked on
+  # amd64 (so restoreGoBinaries below matters) and statically linked on
+  # aarch64 (autoPatchelf ignores them; the restore is a harmless no-op).
+  sources = {
+    x86_64-linux = {
+      urlArch = "amd64";
+      hash = "sha256-YySYUm5URisCVyO9RL+89gMkQn7C3nToVwujAfArIy4=";
+    };
+    aarch64-linux = {
+      urlArch = "arm64";
+      hash = "sha256-ZpO9BT9xXMXiqGtSrgx7ghTyiDsLUhq7PpgGw8be4Ak=";
+    };
+  };
+  source =
+    sources.${stdenv.hostPlatform.system}
+      or (throw "windscribe: unsupported system ${stdenv.hostPlatform.system}");
+in
 stdenv.mkDerivation rec {
   pname = "windscribe";
   version = "2.23.12";
 
   src = fetchurl {
-    url = "https://github.com/Windscribe/Desktop-App/releases/download/v${version}/windscribe_${version}_amd64.deb";
-    hash = "sha256-YySYUm5URisCVyO9RL+89gMkQn7C3nToVwujAfArIy4=";
+    url = "https://github.com/Windscribe/Desktop-App/releases/download/v${version}/windscribe_${version}_${source.urlArch}.deb";
+    inherit (source) hash;
   };
 
   nativeBuildInputs = [
@@ -183,7 +204,7 @@ stdenv.mkDerivation rec {
     homepage = "https://windscribe.com";
     license = licenses.gpl2;
     sourceProvenance = [ sourceTypes.binaryNativeCode ];
-    platforms = [ "x86_64-linux" ];
+    platforms = builtins.attrNames sources;
     mainProgram = "windscribe";
   };
 }
