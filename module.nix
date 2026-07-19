@@ -25,19 +25,30 @@ in
     # rewritten; nix-ld provides the interpreter path so they can be exec'd.
     programs.nix-ld.enable = true;
 
-    # The GUI and CLI need cap_setgid to switch to the windscribe group for helper socket access.
+    # The helper listens on a 0770 root:windscribe unix socket
+    # (/var/run/windscribe/helper.sock). The GUI/CLI reach it by running
+    # setgid "windscribe" so they inherit egid=windscribe - exactly what the
+    # upstream .deb does in its postinst:
+    #   chgrp windscribe /opt/windscribe/Windscribe && chmod 2755 ...
+    # The app connects with the inherited group, then drops it (dropHelperGroup).
+    #
+    # cap_setgid does NOT work here: the app never calls setgid() to *raise*
+    # into the windscribe group before connecting (it only ever drops the
+    # group), so the capability is never exercised and connect() gets EACCES,
+    # which surfaces as "Timed out connecting to helper socket" / "app did not
+    # start in time".
     security.wrappers = {
       windscribe = {
         source = "${cfg.package}/opt/windscribe/Windscribe";
-        capabilities = "cap_setgid+ep";
         owner = "root";
-        group = "root";
+        group = "windscribe";
+        setgid = true;
       };
       windscribe-cli = {
         source = "${cfg.package}/opt/windscribe/windscribe-cli";
-        capabilities = "cap_setgid+ep";
         owner = "root";
-        group = "root";
+        group = "windscribe";
+        setgid = true;
       };
     };
 
