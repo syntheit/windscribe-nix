@@ -15,6 +15,17 @@
         default = self.packages.${system}.windscribe;
       };
 
+      checks.${system}.windscribe = pkgs.testers.runNixOSTest {
+        imports = [ ./test.nix ];
+        # Inject this flake's module and package into every node. (runNixOSTest
+        # pins each node's pkgs read-only, so set the package directly rather
+        # than via nixpkgs.overlays.)
+        defaults = {
+          imports = [ self.nixosModules.default ];
+          services.windscribe.package = self.packages.${system}.windscribe;
+        };
+      };
+
       overlays.default = final: _prev: {
         windscribe = final.callPackage ./package.nix { };
       };
