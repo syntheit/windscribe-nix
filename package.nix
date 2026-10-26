@@ -2,8 +2,10 @@
   lib,
   stdenv,
   fetchurl,
+  fetchpatch,
   dpkg,
   autoPatchelfHook,
+  buildPackages,
   makeWrapper,
   # GUI dependencies (linked)
   dbus,
@@ -64,6 +66,35 @@ let
   source =
     sources.${stdenv.hostPlatform.system}
       or (throw "windscribe: unsupported system ${stdenv.hostPlatform.system}");
+
+  # windscribeopenvpn is a non-PIE ET_EXEC that upstream already ran through
+  # patchelf (RUNPATH /opt/windscribe/lib, extra header LOAD below 0x400000).
+  # patchelf 0.19.2 aborts in shiftFile (Assertion `splitIndex == -1') when
+  # autoPatchelf grows its interpreter and then rewrites its RPATH.
+  # patchelfUnstable (0.18.0-unstable-2025-08-13) aborts the same way; 0.15.2
+  # and patchelf master both work. Carry the upstream fix (NixOS/patchelf#672,
+  # unreleased; see also NixOS/patchelf#583 and #675) until nixpkgs ships a
+  # patchelf newer than 0.19.2, then drop this and the PATH override below.
+  # The patch targets 0.19.2 only; any other patchelf is used as-is. Only
+  # src/ is patched: the tests/ hunks touch Makefile.am, which would make the
+  # release tarball's generated Makefiles try to rerun automake.
+  patchelfFixed =
+    let
+      inherit (buildPackages) patchelf; # runs at build time
+    in
+    if patchelf.version == "0.19.2" then
+      patchelf.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [
+          (fetchpatch {
+            name = "patchelf-fix-executable-header-load-overlap.patch";
+            url = "https://github.com/NixOS/patchelf/commit/59acc3d98b4961cfddf02090d9426ac735603218.patch";
+            includes = [ "src/*" ];
+            hash = "sha256-rQWWZlCa4IRrcPcxMD2xrTTD4nLOsWfdZLOk9UoIOIs=";
+          })
+        ];
+      })
+    else
+      patchelf;
 in
 stdenv.mkDerivation rec {
   pname = "windscribe";
@@ -185,6 +216,10 @@ stdenv.mkDerivation rec {
 
   # Bundled libs (libwsnet, libcrypto, libssl) live in $out/opt/windscribe/lib
   preFixup = ''
+    # auto-patchelf runs `patchelf` from PATH; put the fixed one first (see
+    # patchelfFixed above). Also covers the --shrink-rpath pass in fixupPhase.
+    export PATH="${lib.getBin patchelfFixed}/bin:$PATH"
+
     addAutoPatchelfSearchPath $out/opt/windscribe/lib
 
     # Register a hook that runs AFTER autoPatchelf (which is also a

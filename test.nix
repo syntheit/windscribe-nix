@@ -8,21 +8,31 @@
     let
       # Connects to the helper's unix socket. Exits 0 on success, 1 on any
       # error (EACCES for a caller not in the windscribe group, ECONNREFUSED if
-      # nothing is listening, ...). Written in Python, not shell: a setgid bash
-      # would drop egid back to the real gid (its privileged-mode guard),
-      # masking the very group the setgid wrapper grants - the real GUI is a
-      # compiled binary and keeps the group.
-      helperProbe = pkgs.writeScript "windscribe-helper-probe" ''
-        #!${pkgs.python3}/bin/python3
-        import socket, sys
-        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        try:
-            s.connect("/var/run/windscribe/helper.sock")
-        except OSError as e:
-            print("connect failed:", e)
-            sys.exit(1)
-        print("connected")
-      '';
+      # nothing is listening, ...). A compiled binary, not a script: a setgid
+      # bash would drop egid back to the real gid (its privileged-mode guard),
+      # masking the very group the setgid wrapper grants, and security.wrappers
+      # refuses non-ELF sources (ensure-wrapper-integrity). The real GUI is a
+      # compiled binary too and keeps the group.
+      helperProbe =
+        pkgs.writeCBin "windscribe-helper-probe" ''
+          #include <stdio.h>
+          #include <string.h>
+          #include <sys/socket.h>
+          #include <sys/un.h>
+
+          int main(void) {
+            struct sockaddr_un addr = { .sun_family = AF_UNIX };
+            strncpy(addr.sun_path, "/var/run/windscribe/helper.sock", sizeof(addr.sun_path) - 1);
+            int s = socket(AF_UNIX, SOCK_STREAM, 0);
+            if (s < 0 || connect(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+              perror("connect failed");
+              return 1;
+            }
+            puts("connected");
+            return 0;
+          }
+        ''
+        + "/bin/windscribe-helper-probe";
     in
     {
       services.windscribe.enable = true;
