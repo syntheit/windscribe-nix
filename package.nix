@@ -32,6 +32,9 @@
   libnl,
   libcap_ng,
   acl,
+  # Helper/GUI libraries added in 2.24
+  nftables,
+  systemdLibs,
   # Runtime tools used by helper scripts
   iptables,
   iproute2,
@@ -56,11 +59,11 @@ let
   sources = {
     x86_64-linux = {
       urlArch = "amd64";
-      hash = "sha256-YySYUm5URisCVyO9RL+89gMkQn7C3nToVwujAfArIy4=";
+      hash = "sha256-eanxf898hY6NKzHM2umrfabjhA+8kKl0AQTLCsvOGZE=";
     };
     aarch64-linux = {
       urlArch = "arm64";
-      hash = "sha256-ZpO9BT9xXMXiqGtSrgx7ghTyiDsLUhq7PpgGw8be4Ak=";
+      hash = "sha256-pvbcsQ4Uz51bDmdvoE69l3E7/ivf7OFGWB5Psoi8Fls=";
     };
   };
   source =
@@ -98,7 +101,7 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "windscribe";
-  version = "2.23.12";
+  version = "2.24.13";
 
   src = fetchurl {
     url = "https://github.com/Windscribe/Desktop-App/releases/download/v${version}/windscribe_${version}_${source.urlArch}.deb";
@@ -134,6 +137,8 @@ stdenv.mkDerivation rec {
     libnl
     libcap_ng
     acl
+    nftables # libnftables.so.1 (helper)
+    systemdLibs # libudev.so.1 (GUI)
     stdenv.cc.cc.lib
   ];
 
